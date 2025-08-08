@@ -43,11 +43,11 @@ You need to have Node.js and npm installed on your machine.
     ```
 2.  Install NPM packages
     ```sh
-    npm install
+    pnpm install
     ```
 3.  Run the development server
     ```sh
-    npm run dev
+    pnpm run dev
     ```
     Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
 
