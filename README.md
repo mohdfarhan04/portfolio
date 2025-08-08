@@ -1,4 +1,4 @@
-# portfolio
+# Portfolio
 A modern, responsive portfolio website for a graphic designer, built with Next.js, Tailwind CSS, and Framer Motion for animations. 
 # Graphic Design Portfolio Website
 
@@ -39,7 +39,7 @@ You need to have Node.js and npm installed on your machine.
 
 1.  Clone the repo
     ```sh
-    git clone [https://github.com/mohdfarhan04/your-repo-name.git](https://github.com/your-username/your-repo-name.git)
+    git clone [https://github.com/mohdfarhan04/portfolio.git](https://github.com/mohdfarhan04/portfolio.git)
     ```
 2.  Install NPM packages
     ```sh
@@ -51,4 +51,4 @@ You need to have Node.js and npm installed on your machine.
     ```
     Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
 
-Project Link: [https://github.com/mohdfarhan04/  ](https://github.com/your-username/your-repo-name)
+Project Link: [https://github.com/mohdfarhan04/portfolio](https://github.com/mohdfarhan04/portfolio)
