@@ -49,6 +49,6 @@ You need to have Node.js and npm installed on your machine.
     ```sh
     pnpm run dev
     ```
-    Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+    Open [graphic-design-portfolio-1.vercel.app.](https://graphic-design-portfolio-1.vercel.app/)
 
 Project Link: [https://github.com/mohdfarhan04/portfolio](https://github.com/mohdfarhan04/portfolio)
