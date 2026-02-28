@@ -1,5 +1,5 @@
 # portfolio
-# 🌟 Mohammed Farhan . A — Portfolio
+# 🌟 Mohd Farhan's — Portfolio
 
 Welcome to my portfolio repository!  
 I’m an **Engineering student specializing in Computer Science and Engineering** at **Dayananda Sagar Academy of Technology and Management**, passionate about building **AI-powered applications**, **modern web solutions**, and **real-world projects** that blend creativity with engineering.
