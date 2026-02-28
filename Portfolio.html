@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PY-OS v1.0 — Mohd Farhan</title>
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green: #00ff41;
+  --green-dim: #00aa2a;
+  --amber: #ffb000;
+  --bg-desktop: #1e2235;
+  --bg-window: #111318;
+  --win-title: #2a2d3a;
+  --win-border: #4a4d5e;
+  --text: #c8ccd8;
+  --text-dim: #6b7080;
+  --font-mono: 'Share Tech Mono', monospace;
+  --font-vt: 'VT323', monospace;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg-desktop); font-family:var(--font-mono); overflow:hidden; height:100vh; cursor:default; user-select:none; }
+
+/* STATIC scanlines — no animation = no GPU drain */
+body::before {
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:9000;
+  background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px);
+}
+
+.screen { position:fixed; inset:0; display:none; }
+.screen.active { display:flex; }
+
+/* ══ BOOT ══ */
+#screen-boot { background:#000; flex-direction:column; justify-content:center; align-items:flex-start; padding:60px 80px; }
+.boot-line { font-family:var(--font-mono); font-size:16px; color:#c8ccd8; line-height:1.8; opacity:0; white-space:pre; }
+.boot-line.green { color:var(--green); }
+.boot-line.show { opacity:1; }
+#boot-box { border:1px solid var(--green); padding:10px 20px; margin-top:20px; font-family:var(--font-mono); font-size:15px; color:var(--green); text-shadow:0 0 8px var(--green); opacity:0; transition:opacity 0.3s; display:inline-block; }
+#boot-box.show { opacity:1; }
+#boot-bar-wrap { position:absolute; bottom:50px; left:80px; right:80px; }
+#boot-bar-track { height:16px; background:#111; border:1px solid #333; overflow:hidden; }
+#boot-bar-fill { height:100%; background:var(--green); width:0%; transition:width 0.04s linear; box-shadow:0 0 10px var(--green); }
+#boot-bar-label { text-align:center; font-size:13px; color:var(--green); letter-spacing:3px; margin-top:8px; }
+
+/* ══ WELCOME ══ */
+#screen-welcome { background:#0d0f18; flex-direction:column; justify-content:center; align-items:center; }
+#screen-welcome::after { content:''; position:absolute; inset:0; pointer-events:none; background:repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(0,0,0,0.3) 1px, rgba(0,0,0,0.3) 2px); }
+.welcome-box { border:1px solid #3a3d4e; padding:50px 60px; min-width:520px; text-align:center; background:rgba(20,23,35,0.9); position:relative; z-index:1; animation:wbIn 0.5s cubic-bezier(0.23,1,0.32,1) forwards; }
+@keyframes wbIn { from{transform:scale(0.9);opacity:0} to{transform:scale(1);opacity:1} }
+.pixel-name { font-family:var(--font-vt); font-size:72px; color:#c8ccd8; letter-spacing:6px; line-height:1; margin-bottom:30px; text-shadow:3px 3px 0 #2a2d3a,-1px -1px 0 #4a4d5e; filter:drop-shadow(0 0 20px rgba(200,204,216,0.3)); }
+.welcome-subtitle { font-size:15px; color:#c8ccd8; letter-spacing:2px; margin-bottom:8px; }
+.welcome-meta { font-size:13px; color:var(--text-dim); letter-spacing:1px; margin-bottom:40px; }
+.welcome-btn { display:flex; align-items:center; gap:14px; width:100%; padding:14px 24px; border:1px solid #3a3d4e; background:transparent; color:var(--text); font-family:var(--font-mono); font-size:14px; letter-spacing:2px; cursor:pointer; transition:all 0.2s; margin-bottom:12px; text-transform:uppercase; }
+.welcome-btn:hover { background:rgba(255,255,255,0.05); border-color:#6a6d7e; }
+.welcome-btn-icon { font-size:18px; }
+.welcome-hint { font-size:12px; color:var(--text-dim); margin-top:10px; letter-spacing:1px; }
+
+/* ══ DESKTOP ══ */
+#screen-desktop { flex-direction:column; background:var(--bg-desktop); }
+#topbar { height:36px; background:rgba(15,17,28,0.95); display:flex; align-items:center; padding:0 16px; gap:12px; border-bottom:1px solid #2a2d3e; flex-shrink:0; justify-content:space-between; }
+.topbar-left { display:flex; align-items:center; gap:10px; }
+.status-badge { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-dim); letter-spacing:1px; }
+.status-dot { width:8px; height:8px; border-radius:50%; background:var(--green); box-shadow:0 0 6px var(--green); animation:pulse 2s ease infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+.topbar-link { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-dim); letter-spacing:1px; padding:3px 10px; border:1px solid #3a3d4e; cursor:pointer; transition:all 0.2s; text-decoration:none; }
+.topbar-link:hover { color:var(--text); border-color:#5a5d6e; }
+.topbar-right { display:flex; gap:6px; }
+.topbar-tab { font-size:12px; color:var(--text-dim); padding:4px 14px; cursor:pointer; letter-spacing:1px; transition:color 0.2s; border-bottom:2px solid transparent; }
+.topbar-tab:hover,.topbar-tab.active { color:var(--text); border-bottom-color:var(--green); }
+
+#desktop-area { flex:1; position:relative; overflow:hidden; display:flex; }
+#desktop-main { flex:1; position:relative; overflow:hidden; }
+
+/* ══ SIDEBAR ══ */
+#right-sidebar { width:100px; background:rgba(10,12,22,0.8); border-left:1px solid #2a2d3e; padding:16px 8px; display:flex; flex-direction:column; gap:4px; overflow-y:auto; flex-shrink:0; }
+#right-sidebar::-webkit-scrollbar { width:3px; }
+#right-sidebar::-webkit-scrollbar-thumb { background:#3a3d4e; }
+.sidebar-icon { display:flex; flex-direction:column; align-items:center; gap:4px; padding:8px 4px; cursor:pointer; border-radius:2px; transition:background 0.15s; }
+.sidebar-icon:hover { background:rgba(255,255,255,0.06); }
+.sidebar-icon:active { background:rgba(255,255,255,0.1); }
+.icon-img { width:36px; height:36px; display:flex; align-items:center; justify-content:center; font-size:22px; border-radius:4px; }
+.icon-label { font-size:10px; color:var(--text-dim); letter-spacing:0.5px; text-align:center; }
+.sidebar-icon:hover .icon-label { color:var(--text); }
+
+/* ══ TASKBAR ══ */
+#taskbar { height:36px; background:rgba(10,12,22,0.97); border-top:1px solid #2a2d3e; display:flex; align-items:center; padding:0 8px; gap:6px; flex-shrink:0; overflow:hidden; }
+#start-btn { display:flex; align-items:center; gap:6px; padding:4px 14px; background:var(--green); color:#000; font-family:var(--font-mono); font-size:13px; font-weight:bold; letter-spacing:2px; cursor:pointer; transition:background 0.2s; border:none; text-transform:uppercase; flex-shrink:0; }
+#start-btn:hover { background:#00cc35; }
+.taskbar-sep { width:1px; height:20px; background:#2a2d3e; flex-shrink:0; }
+.taskbar-app { display:flex; align-items:center; gap:6px; padding:4px 10px; border:1px solid #3a3d4e; background:rgba(255,255,255,0.04); font-size:11px; color:var(--text-dim); cursor:pointer; transition:all 0.15s; letter-spacing:1px; flex-shrink:0; white-space:nowrap; }
+.taskbar-app.active-app { background:rgba(0,255,65,0.08); border-color:var(--green-dim); color:var(--text); }
+.taskbar-app:hover { background:rgba(255,255,255,0.07); }
+.taskbar-right { margin-left:auto; display:flex; align-items:center; gap:12px; flex-shrink:0; }
+.tb-indicator { font-size:11px; color:var(--text-dim); letter-spacing:1px; }
+#sys-clock { font-family:var(--font-vt); font-size:17px; color:var(--green); letter-spacing:2px; }
+
+/* ══ WINDOWS ══ */
+.win { position:absolute; background:var(--bg-window); border:1px solid var(--win-border); box-shadow:4px 4px 0 rgba(0,0,0,0.5),0 0 30px rgba(0,0,0,0.5); display:none; flex-direction:column; min-width:300px; min-height:200px; z-index:100; contain:layout style; }
+.win.open { display:flex; animation:winOpen 0.15s ease; }
+.win.focused { border-color:#6a6d7e; z-index:200; }
+@keyframes winOpen { from{transform:scale(0.95);opacity:0} to{transform:scale(1);opacity:1} }
+.win-titlebar { height:28px; background:var(--win-title); display:flex; align-items:center; padding:0 8px; gap:6px; cursor:move; flex-shrink:0; border-bottom:1px solid #3a3d4e; user-select:none; }
+.win-title { font-size:13px; color:var(--text-dim); letter-spacing:1px; flex:1; padding-left:4px; }
+.win-btn { width:16px; height:14px; border:1px solid #5a5d6e; background:var(--win-title); display:flex; align-items:center; justify-content:center; font-size:10px; cursor:pointer; color:var(--text-dim); transition:all 0.1s; flex-shrink:0; }
+.win-btn:hover { background:#3a3d4e; color:var(--text); }
+.win-btn.close-btn:hover { background:#aa2222; border-color:#cc3333; color:#fff; }
+.win-body { flex:1; overflow-y:auto; padding:0; }
+.win-body::-webkit-scrollbar { width:4px; }
+.win-body::-webkit-scrollbar-track { background:#0a0c12; }
+.win-body::-webkit-scrollbar-thumb { background:#3a3d4e; }
+
+/* ══ TERMINAL ══ */
+#win-terminal { width:660px; height:500px; top:50px; left:40px; }
+.terminal-output { padding:16px; font-size:14px; line-height:1.8; color:var(--text); min-height:200px; }
+.t-green { color:var(--green); }
+.t-amber { color:var(--amber); }
+.t-dim { color:var(--text-dim); }
+.t-cmd { color:var(--green); }
+.t-prompt { color:var(--green-dim); }
+#terminal-input-line { display:flex; align-items:center; padding:8px 16px; border-top:1px solid #2a2d3e; flex-shrink:0; }
+.terminal-prompt { color:var(--green-dim); font-size:14px; white-space:nowrap; margin-right:8px; }
+#terminal-input { flex:1; background:transparent; border:none; outline:none; color:var(--green); font-family:var(--font-mono); font-size:14px; caret-color:var(--green); }
+
+/* ══ ABOUT ══ */
+#win-about { width:540px; height:480px; top:60px; left:100px; }
+.about-content { padding:24px; font-size:14px; }
+.about-header { border-bottom:1px solid #2a2d3e; padding-bottom:16px; margin-bottom:20px; }
+.about-name { font-family:var(--font-vt); font-size:32px; color:var(--green); text-shadow:0 0 8px rgba(0,255,65,0.5); }
+.about-role { font-size:13px; color:var(--text-dim); margin-top:4px; letter-spacing:1px; }
+.about-item { display:flex; gap:16px; margin-bottom:12px; }
+.about-key { color:var(--green-dim); min-width:110px; font-size:13px; }
+.about-val { color:var(--text); font-size:13px; }
+.about-bio { color:var(--text-dim); font-size:13px; line-height:1.8; margin-top:16px; padding-top:16px; border-top:1px solid #2a2d3e; }
+.about-bio strong { color:var(--text); }
+
+/* ══ PROJECTS ══ */
+#win-projects { width:700px; height:520px; top:50px; left:80px; }
+.projects-content { padding:20px; }
+.proj-card { border:1px solid #2a2d3e; padding:16px; margin-bottom:12px; transition:border-color 0.2s; }
+.proj-card:hover { border-color:#4a4d5e; background:rgba(255,255,255,0.01); }
+.proj-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:6px; gap:10px; }
+.proj-name { font-family:var(--font-vt); font-size:22px; color:var(--green); text-shadow:0 0 6px rgba(0,255,65,0.4); line-height:1.2; }
+.proj-id { font-size:11px; color:var(--text-dim); letter-spacing:2px; white-space:nowrap; margin-top:4px; }
+.proj-desc { font-size:13px; color:var(--text-dim); line-height:1.7; margin-bottom:10px; }
+.proj-tech { display:flex; flex-wrap:wrap; gap:6px; }
+.proj-tag { font-size:11px; color:var(--amber); border:1px solid rgba(255,176,0,0.3); padding:2px 8px; letter-spacing:0.5px; }
+
+/* ══ SKILLS ══ */
+#win-skills { width:560px; height:500px; top:60px; left:120px; }
+.skills-content { padding:20px; }
+.skill-group { margin-bottom:20px; }
+.skill-group-title { font-family:var(--font-vt); font-size:16px; color:var(--amber); letter-spacing:3px; margin-bottom:10px; padding-bottom:6px; border-bottom:1px solid #2a2d3e; }
+.skill-row { display:flex; align-items:center; gap:12px; margin-bottom:8px; }
+.skill-name { font-size:13px; color:var(--text); min-width:160px; }
+.skill-track { flex:1; height:5px; background:#1a1d28; }
+.skill-fill { height:100%; background:var(--green); box-shadow:0 0 6px rgba(0,255,65,0.4); width:0%; transition:width 1.2s cubic-bezier(0.22,1,0.36,1); }
+.skill-pct { font-size:12px; color:var(--text-dim); min-width:35px; text-align:right; }
+
+/* ══ RADAR ══ */
+#win-radar { width:480px; height:480px; top:70px; left:100px; }
+#radar-canvas { display:block; margin:0 auto; }
+
+/* ══ AWARDS ══ */
+#win-awards { width:520px; height:420px; top:80px; left:100px; }
+.awards-content { padding:20px; }
+.award-item { display:flex; gap:16px; padding:14px; border:1px solid #2a2d3e; margin-bottom:10px; transition:border-color 0.2s; }
+.award-item:hover { border-color:#4a4d5e; }
+.award-icon { font-size:28px; line-height:1; flex-shrink:0; }
+.award-title { font-family:var(--font-vt); font-size:20px; color:var(--amber); }
+.award-desc { font-size:13px; color:var(--text-dim); margin-top:4px; line-height:1.6; }
+
+/* ══ RESUME ══ */
+#win-resume { width:580px; height:520px; top:60px; left:100px; }
+.resume-content { padding:20px; font-size:13px; }
+.resume-section { margin-bottom:20px; }
+.resume-section-title { font-family:var(--font-vt); font-size:18px; color:var(--green); letter-spacing:2px; margin-bottom:12px; padding-bottom:6px; border-bottom:1px solid #2a2d3e; }
+.resume-entry { margin-bottom:14px; }
+.resume-job { display:flex; justify-content:space-between; margin-bottom:4px; gap:10px; }
+.resume-company { color:var(--amber); font-size:14px; }
+.resume-period { color:var(--text-dim); font-size:12px; white-space:nowrap; }
+.resume-role { color:var(--text); font-size:13px; margin-bottom:6px; }
+.resume-bullets { color:var(--text-dim); padding-left:16px; line-height:1.8; }
+.resume-bullets li::marker { color:var(--green-dim); content:'▸ '; }
+
+/* ══ TIMELINE ══ */
+#win-timeline { width:600px; height:480px; top:60px; left:100px; }
+.timeline-content { padding:24px 20px; position:relative; }
+.timeline-line { position:absolute; left:52px; top:24px; bottom:24px; width:1px; background:linear-gradient(to bottom, var(--green-dim), transparent); }
+.tl-item { display:flex; gap:20px; margin-bottom:28px; position:relative; }
+.tl-year { font-family:var(--font-vt); font-size:18px; color:var(--green); min-width:44px; text-align:right; padding-top:2px; }
+.tl-dot { width:10px; height:10px; border-radius:50%; background:var(--green); border:2px solid var(--bg-desktop); box-shadow:0 0 8px var(--green); margin-top:6px; flex-shrink:0; }
+.tl-body { flex:1; }
+.tl-title { color:var(--text); font-size:14px; margin-bottom:4px; }
+.tl-company { color:var(--amber); font-size:12px; letter-spacing:1px; margin-bottom:6px; }
+.tl-desc { color:var(--text-dim); font-size:12px; line-height:1.7; }
+
+/* ══ LOGS ══ */
+#win-logs { width:580px; height:380px; top:80px; left:100px; }
+.logs-content { padding:16px; font-size:13px; }
+.log-entry { display:flex; gap:12px; margin-bottom:6px; }
+.log-time { color:var(--green-dim); min-width:90px; }
+.log-level-ok { color:var(--green); min-width:50px; }
+.log-level-warn { color:var(--amber); min-width:50px; }
+.log-level-err { color:#ff4444; min-width:50px; }
+.log-msg { color:var(--text-dim); }
+
+/* ══ CODE ══ */
+#win-code { width:620px; height:500px; top:60px; left:90px; }
+.code-content { padding:0; height:100%; display:flex; flex-direction:column; }
+.code-tabs { display:flex; border-bottom:1px solid #2a2d3e; flex-shrink:0; }
+.code-tab { font-size:12px; color:var(--text-dim); padding:8px 16px; cursor:pointer; letter-spacing:1px; border-right:1px solid #2a2d3e; transition:color 0.2s; }
+.code-tab.active { color:var(--green); background:rgba(0,255,65,0.04); }
+.code-body { padding:20px; font-size:13px; line-height:1.9; color:var(--text-dim); overflow:auto; flex:1; }
+.kw { color:#7c9bff; } .str { color:#f1b657; } .fn { color:#5fd3a0; }
+.cm { color:#4a5568; } .num { color:#ff7c7c; } .cls { color:#e8b4ff; }
+.code-ln { color:#3a3d4e; margin-right:12px; display:inline-block; min-width:24px; text-align:right; }
+
+/* ══ CONTACT ══ */
+#win-display { width:540px; height:460px; top:70px; left:100px; }
+.display-content { padding:24px; }
+.contact-desc { font-size:13px; color:var(--text-dim); line-height:1.8; margin-bottom:20px; }
+.contact-desc strong { color:var(--text); }
+.contact-form-line { display:flex; align-items:center; gap:10px; border:1px solid #2a2d3e; border-top:none; padding:10px 14px; }
+.contact-form-line:first-of-type { border-top:1px solid #2a2d3e; }
+.contact-form-line:focus-within { border-color:#4a4d5e; background:rgba(255,255,255,0.01); }
+.cf-label { font-family:var(--font-vt); font-size:18px; color:var(--green-dim); min-width:70px; }
+.cf-input,.cf-textarea { flex:1; background:transparent; border:none; outline:none; font-family:var(--font-mono); font-size:13px; color:var(--text); caret-color:var(--green); }
+.cf-textarea { resize:none; height:72px; }
+.cf-send { margin-top:14px; padding:10px 24px; border:1px solid var(--green); color:var(--green); background:transparent; font-family:var(--font-mono); font-size:13px; cursor:pointer; letter-spacing:2px; transition:all 0.2s; text-transform:uppercase; }
+.cf-send:hover { background:var(--green); color:#000; }
+.cf-send:disabled { opacity:0.5; cursor:not-allowed; }
+
+/* ══ TETRIS ══ */
+#win-tetris { width:300px; height:540px; top:50px; left:150px; }
+.tetris-wrap { display:flex; flex-direction:column; align-items:center; padding:16px; height:100%; }
+#tetris-canvas { border:1px solid #3a3d4e; }
+.tetris-ui { display:flex; gap:20px; margin-top:12px; font-size:13px; color:var(--text-dim); }
+.tetris-stat { text-align:center; }
+.tetris-stat-val { font-family:var(--font-vt); font-size:24px; color:var(--green); text-shadow:0 0 8px rgba(0,255,65,0.5); }
+#tetris-overlay { position:absolute; inset:0; background:rgba(0,0,0,0.85); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; }
+#tetris-overlay.hidden { display:none; }
+.tetris-overlay-title { font-family:var(--font-vt); font-size:32px; color:var(--green); text-shadow:0 0 12px var(--green); }
+.tetris-overlay-sub { font-size:13px; color:var(--text-dim); letter-spacing:2px; text-align:center; padding:0 16px; }
+.play-btn { padding:10px 28px; border:1px solid var(--green); color:var(--green); background:transparent; font-family:var(--font-mono); font-size:13px; cursor:pointer; letter-spacing:2px; transition:all 0.2s; text-transform:uppercase; }
+.play-btn:hover { background:var(--green); color:#000; }
+
+/* ══ SNAKE ══ */
+#win-snake { width:380px; height:460px; top:60px; left:160px; }
+.snake-wrap { display:flex; flex-direction:column; align-items:center; padding:16px; height:100%; }
+#snake-canvas { border:1px solid #3a3d4e; }
+</style>
+</head>
+<body>
+
+<!-- ══ BOOT SCREEN ══ -->
+<div class="screen active" id="screen-boot">
+  <div id="boot-lines"></div>
+  <div id="boot-box">PY-OS v1.0 — All Systems Operational &#9608;</div>
+  <div id="boot-bar-wrap">
+    <div id="boot-bar-track"><div id="boot-bar-fill"></div></div>
+    <div id="boot-bar-label">LOADING... <span id="boot-pct">0</span>%</div>
+  </div>
+</div>
+
+<!-- ══ WELCOME SCREEN ══ -->
+<div class="screen" id="screen-welcome">
+  <div class="welcome-box">
+    <div class="pixel-name">MD FARHAN</div>
+    <div class="welcome-subtitle">Welcome to PY-OS v1.0</div>
+    <div class="welcome-meta">Computer Science Engineer &nbsp;•&nbsp; Final Year &nbsp;•&nbsp; DSATM Bengaluru</div>
+    <button class="welcome-btn" onclick="startDesktop()">
+      <span class="welcome-btn-icon">▶</span>EXPLORE PORTFOLIO
+    </button>
+    <button class="welcome-btn" onclick="startDesktop(); setTimeout(()=>openWin('tetris'),600)">
+      <span class="welcome-btn-icon">🎮</span>PLAY TETRIS
+    </button>
+    <div class="welcome-hint">You can switch anytime using the taskbar</div>
+  </div>
+</div>
+
+<!-- ══ DESKTOP SCREEN ══ -->
+<div class="screen" id="screen-desktop">
+
+  <!-- TOP BAR -->
+  <div id="topbar">
+    <div class="topbar-left">
+      <div class="status-badge"><div class="status-dot"></div> Available for opportunities</div>
+      <a class="topbar-link" href="https://www.linkedin.com/in/mohd-farhan2004" target="_blank">🔗 LinkedIn</a>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-tab active" onclick="openWin('terminal')">Terminal</div>
+      <div class="topbar-tab" onclick="openWin('projects')">Files</div>
+    </div>
+  </div>
+
+  <div id="desktop-area">
+    <div id="desktop-main">
+
+      <!-- TERMINAL -->
+      <div class="win open focused" id="win-terminal" data-winid="terminal">
+        <div class="win-titlebar" onmousedown="startDrag(event,'win-terminal')">
+          <span style="font-size:12px">📟</span>
+          <span class="win-title">TERMINAL_V1.0.EXE</span>
+          <div class="win-btn" onclick="minimizeWin('terminal')">─</div>
+          <div class="win-btn" onclick="maximizeWin('terminal')">□</div>
+          <div class="win-btn close-btn" onclick="closeWin('terminal')">✕</div>
+        </div>
+        <div class="win-body" id="terminal-scroll">
+          <div class="terminal-output" id="terminal-out">
+            <span class="t-dim">(c) Mohd Farhan. All rights reserved.</span><br><br>
+            <span>System Status: <span class="t-green">ONLINE</span></span><br>
+            <span>Memory: 640KB OK</span><br>
+            <span>Role: <span class="t-amber">Computer Science Engineer — Final Year</span></span><br>
+            <span>Location: Bengaluru, India</span><br><br>
+            <span class="t-prompt">root@Mdfarhan:~$</span> <span class="t-cmd">sh ./init_portfolio.sh</span><br>
+            <span class="t-green">Portfolio initialized successfully! ✓</span><br><br>
+            <span class="t-dim">Type <span class="t-green">'help'</span> for commands. Try <span class="t-amber">'sudo hire me'</span> 👀</span><br><br>
+          </div>
+        </div>
+        <div id="terminal-input-line">
+          <span class="terminal-prompt">root@Mdfarhan:~$</span>
+          <input id="terminal-input" autocomplete="off" spellcheck="false" onkeydown="handleTerminal(event)" />
+        </div>
+      </div>
+
+      <!-- ABOUT -->
+      <div class="win" id="win-about" data-winid="about">
+        <div class="win-titlebar" onmousedown="startDrag(event,'win-about')">
+          <span style="font-size:12px">👤</span>
+          <span class="win-title">ABOUT.EXE</span>
+          <div class="win-btn" onclick="minimizeWin('about')">─</div>
+          <div class="win-btn close-btn" onclick="closeWin('about')">✕</div>
+        </div>
+        <div class="win-body">
+          <div class="about-content">
+            <div class="about-header">
+              <div class="about-name">Mohd Farhan</div>
+              <div class="about-role">Computer Science Engineer — Final Year @ DSATM</div>
+            </div>
+            <div class="about-item"><span class="about-key">Location</span><span class="about-val">Bengaluru, India</span></div>
+            <div class="about-item"><span class="about-key">Experience</span><span class="about-val">AI Intern @ BEL (Defence Ministry)</span></div>
+            <div class="about-item"><span class="about-key">Current Role</span><span class="about-val">Fresher — Open to Full-time / Internships</span></div>
+            <div class="about-item"><span class="about-key">Specialties</span><span class="about-val">Python, Generative AI, RAG, Docker, APIs</span></div>
+            <div class="about-item"><span class="about-key">Status</span><span class="about-val" style="color:var(--green)">Open to opportunities ✓</span></div>
+            <div class="about-bio">
+              I'm a <strong>final-year Computer Science student</strong> with hands-on experience in <strong>AI-powered applications and full-stack development</strong>. My work spans designing modern frontends, architecting scalable FastAPI/Django backends, containerizing with Docker, and building <strong>LangChain-based RAG pipelines</strong>. Interned at <strong>BEL (Defence Ministry)</strong> where I built a fully offline AI agent using Llama 3.2 and Ollama. I love creating software that's technically robust and creatively impactful.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PROJECTS -->
+      <div class="win" id="win-projects" data-winid="projects">
+        <div class="win-titlebar" onmousedown="startDrag(event,'win-projects')">
+          <span style="font-size:12px">📁</span>
+          <span class="win-title">PROJECTS.DIR</span>
+          <div class="win-btn" onclick="minimizeWin('projects')">─</div>
+          <div class="win-btn close-btn" onclick="closeWin('projects')">✕</div>
+        </div>
+        <div class="win-body">
+          <div class="projects-content">
+            <div class="proj-card">
+              <div class="proj-header">
+                <div class="proj-name">IntelVestor — AI Predictive Analytics</div>
+                <div class="proj-id">PROJ_001</div>
+              </div>
+              <div class="proj-desc">Data-driven insights and predictive analytics platform. Leverages advanced AI techniques, multi-source sentiment analysis and forecasting models to guide investment decisions.</div>
+              <div class="proj-tech"><span class="proj-tag">Next.js</span><span class="proj-tag">Google Generative AI</span><span class="proj-tag">API Integration</span><span class="proj-tag">React</span></div>
+            </div>
+            <div class="proj-card">
+              <div class="proj-header">
+                <div class="proj-name">Farm Edge</div>
+                <div class="proj-id">PROJ_002</div>
+              </div>
+              <div class="proj-desc">Responsive web application providing AI-driven crop and market recommendations using 3+ APIs. Helps farmers make data-backed decisions on planting and selling.</div>
+              <div class="proj-tech"><span class="proj-tag">Vite</span><span class="proj-tag">MongoDB</span><span class="proj-tag">External APIs</span><span class="proj-tag">JavaScript</span></div>
+            </div>
+            <div class="proj-card">
+              <div class="proj-header">
+                <div class="proj-name">Aamantran Portal RAG AI Assistant</div>
+                <div class="proj-id">PROJ_003</div>
+              </div>
+              <div class="proj-desc">RAG-based local AI chatbot using LangChain, Ollama, and Llama 3.2 to deliver accurate guidance from the Aamantran Portal (Ministry of Defence ticketing for Republic Day & Independence Day events). 100% offline, zero cloud dependency.</div>
+              <div class="proj-tech"><span class="proj-tag">Python</span><span class="proj-tag">Ollama</span><span class="proj-tag">LangChain</span><span class="proj-tag">Llama 3.2</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SKILLS -->
+      <div class="win" id="win-skills" data-winid="skills">
+        <div class="win-titlebar" onmousedown="startDrag(event,'win-skills')">
+          <span style="font-size:12px">⚙️</span>
+          <span class="win-title">SKILLS.SYS</span>
+          <div class="win-btn" onclick="minimizeWin('skills')">─</div>
+          <div class="win-btn close-btn" onclick="closeWin('skills')">✕</div>
+        </div>
+        <div class="win-body">
+          <div class="skills-content">
+            <div class="skill-group">
+              <div class="skill-group-title">PROGRAMMING & CORE CS</div>
+              <div class="skill-row"><span class="skill-name">Python / DSA</span><div class="skill-track"><div class="skill-fill" data-w="90"></div></div><span class="skill-pct">90%</span></div>
+              <div class="skill-row"><span class="skill-name">JavaScript / HTML / CSS</span><div class="skill-track"><div class="skill-fill" data-w="80"></div></div><span class="skill-pct">80%</span></div>
+              <div class="skill-row"><span class="skill-name">Operating Systems</span><div class="skill-track"><div class="skill-fill" data-w="75"></div></div><span class="skill-pct">75%</span></div>
+            </div>
+            <div class="skill-group">
+              <div class="skill-group-title">BACKEND & FRAMEWORKS</div>
+              <div class="skill-row"><span class="skill-name">FastAPI / Django</span><div class="skill-track"><div class="skill-fill" data-w="80"></div></div><span class="skill-pct">80%</span></div>
+              <div class="skill-row"><span class="skill-name">React / Next.js</span><div class="skill-track"><div class="skill-fill" data-w="72"></div></div><span class="skill-pct">72%</span></div>
+              <div class="skill-row"><span class="skill-name">REST APIs</span><div class="skill-track"><div class="skill-fill" data-w="85"></div></div><span class="skill-pct">85%</span></div>
+            </div>
+            <div class="skill-group">
+              <div class="skill-group-title">AI / CLOUD & TOOLS</div>
+              <div class="skill-row"><span class="skill-name">LangChain / RAG</span><div class="skill-track"><div class="skill-fill" data-w="82"></div></div><span class="skill-pct">82%</span></div>
+              <div class="skill-row"><span class="skill-name">Generative AI / LLMs</span><div class="skill-track"><div class="skill-fill" data-w="80"></div></div><span class="skill-pct">80%</span></div>
+              <div class="skill-row"><span class="skill-name">Docker</span><div class="skill-track"><div class="skill-fill" data-w="75"></div></div><span class="skill-pct">75%</span></div>
+              <div class="skill-row"><span class="skill-name">Git / GitHub</span><div class="skill-track"><div class="skill-fill" data-w="85"></div></div><span class="skill-pct">85%</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RADAR -->
+      <div class="win" id="win-radar" data-winid="radar">
+        <div class="win-titlebar" onmousedown="startDrag(event,'win-radar')">
+          <span style="font-size:12px">📊</span>
+          <span class="win-title">RADAR.EXE — Skill Chart</span>
+          <div class="win-btn" onclick="minimizeWin('radar')">─</div>
+          <div class="win-btn close-btn" onclick="closeWin('radar')">✕</div>
+        </div>
+        <div class="win-body" style="padding:20px">
+          <canvas id="radar-canvas" width="400" height="380"></canvas>
+        </div>
+      </div>
+
+      <!-- AWARDS -->
+      <div class="win" id="win-awards" data-winid="awards">
+        <div class="win-titlebar" onmousedown="startDrag(event,'win-awards')">
+          <span style="font-size:12px">🏆</span>
+          <span class="win-title">AWARDS.DAT</span>
+          <div class="win-btn" onclick="minimizeWin('awards')">─</div>
+          <div class="win-btn close-btn" onclick="closeWin('awards')">✕</div>
+        </div>
+        <div class="win-body">
+          <div class="awards-content">
+            <div class="award-item">
+              <div class="award-icon">🏅</div>
+              <div><div class="award-title">BEL Defence Ministry Internship</div><div class="award-desc">Selected as AI Developer Intern at Bharat Electronics Limited (Defence Ministry). Built a fully offline RAG chatbot for the Aamantran Portal with zero cloud dependency.</div></div>
+            </div>
+            <div class="award-item">
+              <div class="award-icon">⚡</div>
+              <div><div class="award-title">Generative AI Engineer — Learner's Byte</div><div class="award-desc">Interned as Generative AI Engineer. Built enterprise AI tools with LLMs, hands-on with prompt engineering and production GenAI pipelines.</div></div>
+            </div>
+            <div class="award-item">
+              <div class="award-icon">🎓</div>
+              <div><div class="award-title">B.E. Computer Science — DSATM</div><div class="award-desc">Dayananda Sagar Academy of Technology and Management, Bengaluru. 2022–2026. CGPA: 8.0. Specialization in AI & Cloud Systems.</div></div>
+            </div>
+            <div class="award-item">
+              <div class="award-icon">🌱</div>
+              <div><div class="award-title">Open Source & Community</div><div class="award-desc">Active contributor to AI/ML open source projects. Built IntelVestor and FarmEdge as community-facing portfolio applications.</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RESUME -->
+      <div class="win" id="win-resume" data-winid="resume">
+        <div class="win-titlebar" onmousedown="startDrag(event,'win-resume')">
+          <span style="font-size:12px">📄</span>
+          <span class="win-title">RESUME.PDF</span>
+          <div class="win-btn" onclick="minimizeWin('resume')">─</div>
+          <div class="win-btn close-btn" onclick="closeWin('resume')">✕</div>
+        </div>
+        <div class="win-body">
+          <div class="resume-content">
+            <div class="resume-section">
+              <div class="resume-section-title">EXPERIENCE</div>
+              <div class="resume-entry">
+                <div class="resume-job"><span class="resume-company">Bharat Electronics Limited (BEL)</span><span class="resume-period">2025 — 4 weeks (On-site)</span></div>
+                <div class="resume-role">AI Developer Intern</div>
+                <ul class="resume-bullets">
+                  <li>Built RAG-based AI chatbot using LangChain, Ollama, and Llama 3.2</li>
+                  <li>Developed 100% offline, local AI agent with zero cloud dependency, ensuring full data privacy and open-source compliance (MIT)</li>
+                  <li>Optimized backend performance, scalability, and reliability through code improvements and debugging</li>
+                </ul>
+              </div>
+              <div class="resume-entry">
+                <div class="resume-job"><span class="resume-company">Learner's Byte</span><span class="resume-period">2026</span></div>
+                <div class="resume-role">Generative AI Engineer Intern</div>
+                <ul class="resume-bullets">
+                  <li>Built generative AI tools for enterprise clients using LLMs and prompt engineering</li>
+                  <li>Hands-on experience with production GenAI pipelines and AI product development</li>
+                </ul>
+              </div>
+            </div>
+            <div class="resume-section">
+              <div class="resume-section-title">EDUCATION</div>
+              <div class="resume-entry">
+                <div class="resume-job"><span class="resume-company">Dayananda Sagar Academy of Technology & Management</span><span class="resume-period">2022 — 2026</span></div>
+                <div class="resume-role">B.E. Computer Science — 8.0 CGPA</div>
+              </div>
+            </div>
+            <div class="resume-section">
+              <div class="resume-section-title">KEY SKILLS</div>
+              <div style="color:var(--text-dim);font-size:13px;line-height:1.9">
+                Python · LangChain · RAG Pipelines · FastAPI · Django · Docker · React · Next.js · Ollama · LLMs · Git · REST APIs · Generative AI
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TIMELINE -->
+      <div class="win" id="win-timeline" data-winid="timeline">
+        <div class="win-titlebar" onmousedown="startDrag(event,'win-timeline')">
+          <span style="font-size:12px">📅</span>
+          <span class="win-title">TIMELINE.SH</span>
+          <div class="win-btn" onclick="minimizeWin('timeline')">─</div>
+          <div class="win-btn close-btn" onclick="closeWin('timeline')">✕</div>
+        </div>
+        <div class="win-body">
+          <div class="timeline-content">
+            <div class="timeline-line"></div>
+            <div class="tl-item">
+              <div class="tl-year">2026</div><div class="tl-dot"></div>
+              <div class="tl-body"><div class="tl-title">Generative AI Engineer Intern</div><div class="tl-company">Learner's Byte, Hyderabad</div><div class="tl-desc">Worked on generative AI tools for enterprise clients. Gained hands-on experience with LLMs, prompt engineering, and production AI pipelines.</div></div>
+            </div>
+            <div class="tl-item">
+              <div class="tl-year">2026</div><div class="tl-dot"></div>
+              <div class="tl-body"><div class="tl-title">Graduating — B.E. Computer Science</div><div class="tl-company">DSATM, Bengaluru</div><div class="tl-desc">Completing final year. Actively building AI products and looking for full-time opportunities in AI/ML and Full-Stack engineering.</div></div>
+            </div>
+            <div class="tl-item">
+              <div class="tl-year">2025</div><div class="tl-dot"></div>
+              <div class="tl-body"><div class="tl-title">AI Developer Intern</div><div class="tl-company">Bharat Electronics Limited — Defence Ministry</div><div class="tl-desc">Built a fully offline RAG chatbot for the Aamantran Portal using LangChain, Ollama, and Llama 3.2. Zero cloud dependency, MIT licensed.</div></div>
+            </div>
+            <div class="tl-item">
+              <div class="tl-year">2024</div><div class="tl-dot"></div>
+              <div class="tl-body"><div class="tl-title">Deep Dive into AI & LLMs</div><div class="tl-company">Self-directed Projects</div><div class="tl-desc">Built IntelVestor (AI analytics platform) and FarmEdge (AI crop advisor). Got deep into LangChain, RAG pipelines, and GenAI APIs.</div></div>
+            </div>
+            <div class="tl-item">
+              <div class="tl-year">2023</div><div class="tl-dot"></div>
+              <div class="tl-body"><div class="tl-title">First Full-Stack Projects</div><div class="tl-company">College + Personal Projects</div><div class="tl-desc">Built first production web apps. Learned React, FastAPI, databases. Discovered passion for product development and AI.</div></div>
+            </div>
+            <div class="tl-item">
+              <div class="tl-year">2022</div><div class="tl-dot"></div>
+              <div class="tl-body"><div class="tl-title">Started B.E. CSE</div><div class="tl-company">Dayananda Sagar Academy of Technology & Management</div><div class="tl-desc">Began undergraduate degree. Wrote first lines of code in C and Python. Discovered a deep love for software engineering.</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LOGS -->
+      <div class="win" id="win-logs" data-winid="logs">
+        <div class="win-titlebar" onmousedown="startDrag(event,'win-logs')">
+          <span style="font-size:12px">📋</span>
+          <span class="win-title">SYSTEM_LOGS.TXT</span>
+          <div class="win-btn" onclick="minimizeWin('logs')">─</div>
+          <div class="win-btn close-btn" onclick="closeWin('logs')">✕</div>
+        </div>
+        <div class="win-body">
+          <div class="logs-content" id="logs-content"></div>
+        </div>
+      </div>
+
+      <!-- CODE -->
+      <div class="win" id="win-code" data-winid="code">
+        <div class="win-titlebar" onmousedown="startDrag(event,'win-code')">
+          <span style="font-size:12px">💻</span>
+          <span class="win-title">CODE_SAMPLES.EXE</span>
+          <div class="win-btn" onclick="minimizeWin('code')">─</div>
+          <div class="win-btn close-btn" onclick="closeWin('code')">✕</div>
+        </div>
+        <div class="win-body">
+          <div class="code-content">
+            <div class="code-tabs">
+              <div class="code-tab active" onclick="switchTab(this,'tab1')">rag_chatbot.py</div>
+              <div class="code-tab" onclick="switchTab(this,'tab2')">fastapi_route.py</div>
+            </div>
+            <div class="code-body" id="tab1">
+<span class="code-ln">1</span><span class="cm"># Aamantran Portal RAG chatbot — BEL Internship</span><br>
+<span class="code-ln">2</span><span class="kw">from</span> langchain_community.llms <span class="kw">import</span> <span class="cls">Ollama</span><br>
+<span class="code-ln">3</span><span class="kw">from</span> langchain.chains <span class="kw">import</span> <span class="cls">RetrievalQA</span><br>
+<span class="code-ln">4</span><span class="kw">from</span> langchain_community.vectorstores <span class="kw">import</span> <span class="cls">Chroma</span><br>
+<span class="code-ln">5</span><span class="kw">from</span> langchain_community.embeddings <span class="kw">import</span> <span class="cls">OllamaEmbeddings</span><br>
+<span class="code-ln">6</span><br>
+<span class="code-ln">7</span><span class="kw">def</span> <span class="fn">build_rag_chain</span>(docs_path: <span class="cls">str</span>):<br>
+<span class="code-ln">8</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm"># 100% offline — no cloud, full data privacy</span><br>
+<span class="code-ln">9</span>&nbsp;&nbsp;&nbsp;&nbsp;llm = <span class="cls">Ollama</span>(model=<span class="str">"llama3.2"</span>)<br>
+<span class="code-ln">10</span>&nbsp;&nbsp;&nbsp;&nbsp;embeddings = <span class="cls">OllamaEmbeddings</span>(model=<span class="str">"llama3.2"</span>)<br>
+<span class="code-ln">11</span>&nbsp;&nbsp;&nbsp;&nbsp;vectorstore = <span class="cls">Chroma</span>.from_documents(<br>
+<span class="code-ln">12</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;documents=load_docs(docs_path),<br>
+<span class="code-ln">13</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;embedding=embeddings<br>
+<span class="code-ln">14</span>&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+<span class="code-ln">15</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">return</span> <span class="cls">RetrievalQA</span>.from_chain_type(<br>
+<span class="code-ln">16</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;llm=llm,<br>
+<span class="code-ln">17</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;retriever=vectorstore.as_retriever(search_kwargs={<span class="str">"k"</span>: <span class="num">5</span>})<br>
+<span class="code-ln">18</span>&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+            </div>
+            <div class="code-body" id="tab2" style="display:none">
+<span class="code-ln">1</span><span class="kw">from</span> fastapi <span class="kw">import</span> <span class="cls">FastAPI</span>, <span class="cls">HTTPException</span><br>
+<span class="code-ln">2</span><span class="kw">from</span> pydantic <span class="kw">import</span> <span class="cls">BaseModel</span><br>
+<span class="code-ln">3</span><br>
+<span class="code-ln">4</span>app = <span class="cls">FastAPI</span>()<br>
+<span class="code-ln">5</span><br>
+<span class="code-ln">6</span><span class="kw">class</span> <span class="cls">QueryRequest</span>(<span class="cls">BaseModel</span>):<br>
+<span class="code-ln">7</span>&nbsp;&nbsp;&nbsp;&nbsp;question: <span class="cls">str</span><br>
+<span class="code-ln">8</span><br>
+<span class="code-ln">9</span><span class="code-ln">@app</span>.post(<span class="str">"/query"</span>)<br>
+<span class="code-ln">10</span><span class="kw">async def</span> <span class="fn">query_rag</span>(req: <span class="cls">QueryRequest</span>):<br>
+<span class="code-ln">11</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">if not</span> req.question.strip():<br>
+<span class="code-ln">12</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">raise</span> <span class="cls">HTTPException</span>(status_code=<span class="num">400</span>, detail=<span class="str">"Empty query"</span>)<br>
+<span class="code-ln">13</span>&nbsp;&nbsp;&nbsp;&nbsp;result = chain.invoke({<span class="str">"query"</span>: req.question})<br>
+<span class="code-ln">14</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">return</span> {<span class="str">"answer"</span>: result[<span class="str">"result"</span>]}<br>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CONTACT -->
+      <div class="win" id="win-display" data-winid="display">
+        <div class="win-titlebar" onmousedown="startDrag(event,'win-display')">
+          <span style="font-size:12px">📡</span>
+          <span class="win-title">CONTACT.EXE</span>
+          <div class="win-btn" onclick="minimizeWin('display')">─</div>
+          <div class="win-btn close-btn" onclick="closeWin('display')">✕</div>
+        </div>
+        <div class="win-body">
+          <div class="display-content">
+            <p class="contact-desc">I'm currently open to new opportunities and collaborations!<br>I check this inbox regularly and will get back to you as soon as I can.</p>
+            <div class="contact-form-line"><span class="cf-label">NAME:</span><input class="cf-input" id="cf-name" placeholder="your name"></div>
+            <div class="contact-form-line"><span class="cf-label">EMAIL:</span><input class="cf-input" id="cf-email" type="email" placeholder="you@domain.com"></div>
+            <div class="contact-form-line"><span class="cf-label">SUBJ:</span><input class="cf-input" id="cf-subject" placeholder="project inquiry"></div>
+            <div class="contact-form-line" style="align-items:flex-start;padding-top:12px"><span class="cf-label">MSG:</span><textarea class="cf-textarea" id="cf-message" placeholder="tell me about your project..."></textarea></div>
+            <button class="cf-send" id="cf-submit-btn" onclick="submitContactForm()">TRANSMIT MESSAGE →</button>
+            <div id="cf-status" style="margin-top:12px;font-size:13px;display:none;padding:10px 14px;border:1px solid;letter-spacing:1px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TETRIS -->
+      <div class="win" id="win-tetris" data-winid="tetris">
+        <div class="win-titlebar" onmousedown="startDrag(event,'win-tetris')">
+          <span style="font-size:12px">🟩</span>
+          <span class="win-title">TETRIS.EXE</span>
+          <div class="win-btn" onclick="minimizeWin('tetris')">─</div>
+          <div class="win-btn close-btn" onclick="closeWin('tetris')">✕</div>
+        </div>
+        <div class="win-body" style="position:relative;">
+          <div class="tetris-wrap">
+            <canvas id="tetris-canvas" width="200" height="360"></canvas>
+            <div class="tetris-ui">
+              <div class="tetris-stat"><div class="tetris-stat-val" id="t-score">0</div><div>SCORE</div></div>
+              <div class="tetris-stat"><div class="tetris-stat-val" id="t-level">1</div><div>LEVEL</div></div>
+              <div class="tetris-stat"><div class="tetris-stat-val" id="t-lines">0</div><div>LINES</div></div>
+            </div>
+          </div>
+          <div id="tetris-overlay">
+            <div class="tetris-overlay-title">TETRIS</div>
+            <div class="tetris-overlay-sub">← → MOVE &nbsp;|&nbsp; ↑ ROTATE &nbsp;|&nbsp; ↓ DROP &nbsp;|&nbsp; SPACE SLAM</div>
+            <button class="play-btn" onclick="startTetris()">START GAME</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SNAKE -->
+      <div class="win" id="win-snake" data-winid="snake">
+        <div class="win-titlebar" onmousedown="startDrag(event,'win-snake')">
+          <span style="font-size:12px">🐍</span>
+          <span class="win-title">SNAKE.EXE</span>
+          <div class="win-btn" onclick="minimizeWin('snake')">─</div>
+          <div class="win-btn close-btn" onclick="closeWin('snake')">✕</div>
+        </div>
+        <div class="win-body" style="position:relative;">
+          <div class="snake-wrap">
+            <div style="display:flex;justify-content:space-between;width:300px;margin-bottom:10px;font-size:13px;color:var(--text-dim)">
+              <span>SCORE: <span id="s-score" style="color:var(--green)">0</span></span>
+              <span>BEST: <span id="s-best" style="color:var(--amber)">0</span></span>
+            </div>
+            <canvas id="snake-canvas" width="300" height="300"></canvas>
+            <div style="font-size:12px;color:var(--text-dim);margin-top:10px;letter-spacing:1px">ARROW KEYS TO MOVE</div>
+          </div>
+          <div id="snake-overlay" style="position:absolute;inset:0;background:rgba(0,0,0,0.85);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;">
+            <div style="font-family:var(--font-vt);font-size:32px;color:var(--green);text-shadow:0 0 12px var(--green)">SNAKE</div>
+            <button class="play-btn" onclick="startSnake()">PLAY</button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- #desktop-main -->
+
+    <!-- RIGHT SIDEBAR -->
+    <div id="right-sidebar">
+      <div class="sidebar-icon" onclick="openWin('projects')"><div class="icon-img">📁</div><div class="icon-label">Projects</div></div>
+      <div class="sidebar-icon" onclick="openWin('logs')"><div class="icon-img">📋</div><div class="icon-label">Logs</div></div>
+      <div class="sidebar-icon" onclick="openWin('about')"><div class="icon-img">👤</div><div class="icon-label">About</div></div>
+      <div class="sidebar-icon" onclick="openWin('skills')"><div class="icon-img">⚙️</div><div class="icon-label">Skills</div></div>
+      <div class="sidebar-icon" onclick="openWin('radar')"><div class="icon-img">📊</div><div class="icon-label">Radar</div></div>
+      <div class="sidebar-icon" onclick="openWin('awards')"><div class="icon-img">🏆</div><div class="icon-label">Awards</div></div>
+      <div class="sidebar-icon" onclick="openWin('resume')"><div class="icon-img">📄</div><div class="icon-label">Resume</div></div>
+      <div class="sidebar-icon" onclick="openWin('code')"><div class="icon-img">💻</div><div class="icon-label">Code</div></div>
+      <div class="sidebar-icon" onclick="openWin('display')"><div class="icon-img">📡</div><div class="icon-label">Display</div></div>
+      <div class="sidebar-icon" onclick="openWin('tetris')"><div class="icon-img">🟩</div><div class="icon-label">Tetris</div></div>
+      <div class="sidebar-icon" onclick="openWin('snake')"><div class="icon-img">🐍</div><div class="icon-label">Snake</div></div>
+      <div class="sidebar-icon" onclick="openWin('timeline')"><div class="icon-img">📅</div><div class="icon-label">Timeline</div></div>
+    </div>
+
+  </div><!-- #desktop-area -->
+
+  <!-- TASKBAR -->
+  <div id="taskbar">
+    <button id="start-btn" onclick="openWin('terminal')">≡ START</button>
+    <div class="taskbar-sep"></div>
+    <div class="taskbar-app active-app" id="tb-terminal" onclick="focusWin('terminal')">📟 TERM</div>
+    <div class="taskbar-right">
+      <div class="tb-indicator">⌨ #1342</div>
+      <div id="sys-clock">00:00:00</div>
+    </div>
+  </div>
+
+</div><!-- #screen-desktop -->
+
+<script>
+// ══ BOOT ══
+const bootData = [
+  [false, 'BIOS v1.0 — Mohd Farhan Systems Inc.'],
+  [false, ''],
+  [true,  'Checking RAM......... 640KB OK'],
+  [false, 'Detecting drives......'],
+  [true,  'C:\\ — 500GB SSD [HEALTHY]'],
+  [false, 'D:\\ — Portfolio Archive [MOUNTED]'],
+  [false, ''],
+  [false, 'Loading PY-OS Kernel..........'],
+  [true,  'Initializing network interfaces... OK'],
+  [true,  'Starting display driver... CRT_MODE ACTIVE'],
+  [false, 'Loading modules: [Python] [FastAPI] [Docker] [LangChain]'],
+  [false, 'Loading AI subsystems: [Ollama] [RAG] [Llama3.2]'],
+];
+
+async function runBoot() {
+  const container = document.getElementById('boot-lines');
+  const box = document.getElementById('boot-box');
+  const fill = document.getElementById('boot-bar-fill');
+  const pctEl = document.getElementById('boot-pct');
+  for (const [isGreen, text] of bootData) {
+    const el = document.createElement('div');
+    el.className = 'boot-line show' + (isGreen ? ' green' : '');
+    el.textContent = text || ' ';
+    container.appendChild(el);
+    await sleep(text ? 55 : 25);
+  }
+  await sleep(200);
+  box.classList.add('show');
+  await sleep(250);
+  for (let p = 0; p <= 100; p += 2) {
+    fill.style.width = p + '%';
+    pctEl.textContent = p;
+    await sleep(12);
+  }
+  await sleep(300);
+  document.getElementById('screen-boot').style.transition = 'opacity 0.4s';
+  document.getElementById('screen-boot').style.opacity = '0';
+  await sleep(400);
+  switchScreen('welcome');
+}
+
+// ══ SCREENS ══
+function switchScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+}
+function startDesktop() {
+  switchScreen('desktop');
+  initClock();
+  initLogs();
+  document.getElementById('terminal-input').focus();
+}
+
+// ══ CLOCK ══
+function initClock() {
+  const tick = () => {
+    const n = new Date();
+    document.getElementById('sys-clock').textContent =
+      String(n.getHours()).padStart(2,'0') + ':' +
+      String(n.getMinutes()).padStart(2,'0') + ':' +
+      String(n.getSeconds()).padStart(2,'0');
+  };
+  tick(); setInterval(tick, 1000);
+}
+
+// ══ LOGS — built in one shot, no repeated DOM reflows ══
+function initLogs() {
+  const entries = [
+    ['03:29:01','OK','BIOS v1.0 kernel loaded'],
+    ['03:29:02','OK','network interfaces UP'],
+    ['03:29:03','OK','portfolio.img mounted at /var/portfolio'],
+    ['03:29:04','WARN','swap usage at 68% — optimize soon'],
+    ['03:29:05','OK','LangChain subsystem initialized'],
+    ['03:29:06','OK','Ollama local LLM running on port 11434'],
+    ['03:29:07','WARN','unread LinkedIn messages: 5'],
+    ['03:29:08','OK','display driver CRT_MODE active'],
+    ['03:29:09','OK','RAG pipeline ready — vectorstore loaded'],
+    ['03:29:10','OK','all systems nominal — uptime 99.9%'],
+    ['03:29:48','OK','portfolio accessed by visitor'],
+  ];
+  document.getElementById('logs-content').innerHTML = entries.map(([t,l,m]) =>
+    `<div class="log-entry"><span class="log-time">[${t}]</span><span class="log-level-${l.toLowerCase()}">[${l}]</span><span class="log-msg">${m}</span></div>`
+  ).join('');
+}
+
+// ══ WINDOW MANAGEMENT ══
+const winPositions = {
+  about:[100,70], projects:[80,60], skills:[120,65], radar:[130,60],
+  awards:[110,75], resume:[90,65], timeline:[70,60], logs:[80,70],
+  code:[100,60], display:[110,70], tetris:[150,50], snake:[160,60],
+};
+
+function openWin(id) {
+  const win = document.getElementById('win-' + id);
+  if (!win) return;
+  focusAll();
+  win.classList.add('open','focused');
+  if (winPositions[id]) { win.style.left = winPositions[id][0]+'px'; win.style.top = winPositions[id][1]+'px'; }
+  addTaskbarItem(id);
+  if (id === 'skills') setTimeout(() => win.querySelectorAll('.skill-fill').forEach(el => el.style.width = el.dataset.w + '%'), 100);
+  if (id === 'radar') setTimeout(drawRadar, 100);
+}
+function closeWin(id) {
+  document.getElementById('win-' + id).classList.remove('open','focused');
+  removeTaskbarItem(id);
+}
+function minimizeWin(id) { closeWin(id); }
+function focusWin(id) {
+  focusAll();
+  const win = document.getElementById('win-' + id);
+  if (win && win.classList.contains('open')) win.classList.add('focused');
+  else if (win) openWin(id);
+}
+function maximizeWin(id) {
+  const win = document.getElementById('win-' + id);
+  const main = document.getElementById('desktop-main');
+  win.style.left='0'; win.style.top='0';
+  win.style.width=main.offsetWidth+'px'; win.style.height=main.offsetHeight+'px';
+}
+function focusAll() { document.querySelectorAll('.win').forEach(w => w.classList.remove('focused')); }
+
+function addTaskbarItem(id) {
+  const tbId = 'tb-' + id;
+  if (document.getElementById(tbId)) { document.getElementById(tbId).classList.add('active-app'); return; }
+  const icons = {terminal:'📟',about:'👤',projects:'📁',skills:'⚙️',radar:'📊',awards:'🏆',resume:'📄',code:'💻',display:'📡',tetris:'🟩',snake:'🐍',logs:'📋',timeline:'📅'};
+  const btn = document.createElement('div');
+  btn.className = 'taskbar-app active-app'; btn.id = tbId;
+  btn.innerHTML = (icons[id]||'🔲') + ' ' + id.toUpperCase();
+  btn.onclick = () => focusWin(id);
+  document.getElementById('taskbar').insertBefore(btn, document.querySelector('.taskbar-right'));
+}
+function removeTaskbarItem(id) {
+  const el = document.getElementById('tb-' + id);
+  if (el && id !== 'terminal') el.remove();
+}
+
+document.addEventListener('mousedown', e => {
+  const win = e.target.closest('.win');
+  if (win) { focusAll(); win.classList.add('focused'); }
+});
+
+// ══ DRAG ══
+let dragging = null, dragOX = 0, dragOY = 0;
+function startDrag(e, id) {
+  if (e.target.closest('.win-btn')) return;
+  dragging = document.getElementById(id);
+  dragOX = e.clientX - dragging.getBoundingClientRect().left;
+  dragOY = e.clientY - dragging.getBoundingClientRect().top;
+  focusAll(); dragging.classList.add('focused'); e.preventDefault();
+}
+document.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  const r = document.getElementById('desktop-main').getBoundingClientRect();
+  dragging.style.left = Math.max(0, Math.min(e.clientX - r.left - dragOX, r.width - dragging.offsetWidth)) + 'px';
+  dragging.style.top  = Math.max(0, Math.min(e.clientY - r.top  - dragOY, r.height - dragging.offsetHeight)) + 'px';
+});
+document.addEventListener('mouseup', () => { dragging = null; });
+
+// ══ CODE TABS ══
+function switchTab(el, tabId) {
+  document.querySelectorAll('.code-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab1').style.display = tabId === 'tab1' ? 'block' : 'none';
+  document.getElementById('tab2').style.display = tabId === 'tab2' ? 'block' : 'none';
+}
+
+// ══ TERMINAL ══
+const cmdHistory = [];
+let histIdx = -1;
+function handleTerminal(e) {
+  const input = document.getElementById('terminal-input');
+  if (e.key === 'Enter') {
+    const cmd = input.value.trim();
+    if (cmd) { cmdHistory.unshift(cmd); histIdx = -1; }
+    processCmd(cmd); input.value = '';
+  } else if (e.key === 'ArrowUp') {
+    histIdx = Math.min(histIdx + 1, cmdHistory.length - 1);
+    input.value = cmdHistory[histIdx] || ''; e.preventDefault();
+  } else if (e.key === 'ArrowDown') {
+    histIdx = Math.max(histIdx - 1, -1);
+    input.value = histIdx >= 0 ? cmdHistory[histIdx] : ''; e.preventDefault();
+  }
+}
+
+const COMMANDS = {
+  help: () => `<span class="t-green">Available commands:</span>
+  <span class="t-amber">about</span>      — open about window
+  <span class="t-amber">projects</span>   — view projects
+  <span class="t-amber">skills</span>     — view skills
+  <span class="t-amber">resume</span>     — open resume
+  <span class="t-amber">awards</span>     — view awards
+  <span class="t-amber">timeline</span>   — career timeline
+  <span class="t-amber">radar</span>      — skill radar chart
+  <span class="t-amber">contact</span>    — open contact form
+  <span class="t-amber">code</span>       — view code samples
+  <span class="t-amber">logs</span>       — system logs
+  <span class="t-amber">tetris</span>     — play Tetris 🟩
+  <span class="t-amber">snake</span>      — play Snake 🐍
+  <span class="t-amber">whoami</span>     — identity
+  <span class="t-amber">ls</span>         — list all apps
+  <span class="t-amber">clear</span>      — clear terminal
+  <span class="t-amber">sudo hire me</span> — 👀`,
+
+  whoami: () => `<span class="t-green">Mohd Farhan</span>
+UID=1342  GID=dev  GROUPS=engineer,ai-builder,open-source
+Role:     CS Engineer — Final Year @ DSATM Bengaluru
+Intern:   AI Developer @ BEL (Defence Ministry)
+Email:    mohdfarhannn10@gmail.com
+LinkedIn: linkedin.com/in/mohd-farhan2004
+Status:   <span class="t-green">OPEN TO OPPORTUNITIES ✓</span>`,
+
+  about:    () => { openWin('about');    return '<span class="t-green">Opening about.exe...</span>'; },
+  projects: () => { openWin('projects'); return '<span class="t-green">Mounting /var/projects...</span>'; },
+  skills:   () => { openWin('skills');   return '<span class="t-green">Loading skills.sys...</span>'; },
+  resume:   () => { openWin('resume');   return '<span class="t-green">Rendering resume.pdf...</span>'; },
+  awards:   () => { openWin('awards');   return '<span class="t-green">Loading awards.dat...</span>'; },
+  timeline: () => { openWin('timeline'); return '<span class="t-green">Drawing career timeline...</span>'; },
+  radar:    () => { openWin('radar');    return '<span class="t-green">Plotting skill radar...</span>'; },
+  contact:  () => { openWin('display');  return '<span class="t-green">Opening contact.exe...</span>'; },
+  code:     () => { openWin('code');     return '<span class="t-green">Loading code_samples.exe...</span>'; },
+  logs:     () => { openWin('logs');     return '<span class="t-green">Reading /var/log/sys.log...</span>'; },
+
+  tetris: () => {
+    openWin('tetris');
+    document.getElementById('terminal-input').blur();
+    return '<span class="t-green">Launching Tetris.exe... click the game window to play</span>';
+  },
+  snake: () => {
+    openWin('snake');
+    document.getElementById('terminal-input').blur();
+    return '<span class="t-green">Launching Snake.exe... click the game window to play</span>';
+  },
+
+  ls: () => `<span class="t-dim">total 12 apps</span>
+<span class="t-green">drwxr-xr-x</span>  about.exe  projects.dir  skills.sys  radar.exe
+<span class="t-green">-rwxr-xr-x</span>  resume.pdf  awards.dat  timeline.sh  logs.txt
+<span class="t-green">-rwxr-xr-x</span>  tetris.exe  snake.exe  code_samples.exe  contact.exe`,
+
+  clear: () => { document.getElementById('terminal-out').innerHTML = ''; return null; },
+
+  'sudo hire me': () => `<span class="t-green">Privilege escalation granted. 🎉</span>
+Initiating offer sequence...
+Sending offer letter to: <span class="t-amber">mohdfarhannn10@gmail.com</span>
+<span class="t-green">✓ You just made an excellent decision.</span>`,
+
+  matrix: () => `<span class="t-green">Wake up, Neo...</span>
+<span class="t-dim">The Matrix has you... follow the white rabbit.</span>`,
+  uname:  () => `PY-OS v1.0 #1 SMP IST 2026 x86_64 GNU/Linux`,
+  pwd:    () => `<span class="t-green">/home/farhan/portfolio</span>`,
+  date:   () => `<span class="t-green">${new Date().toString()}</span>`,
+};
+
+function processCmd(cmd) {
+  const out = document.getElementById('terminal-out');
+  const scroll = document.getElementById('terminal-scroll');
+  out.innerHTML += `\n<span class="t-prompt">root@Mdfarhan:~$</span> <span class="t-cmd">${escHtml(cmd)}</span>\n`;
+  const fn = COMMANDS[cmd.toLowerCase()] || COMMANDS[cmd];
+  if (fn) {
+    const result = fn();
+    if (result !== null && result !== undefined) out.innerHTML += result + '\n';
+  } else if (cmd) {
+    out.innerHTML += `<span style="color:#ff6b6b">bash: ${escHtml(cmd)}: command not found. Type '<span style="color:var(--green)">help</span>' for available commands.</span>\n`;
+  }
+  out.innerHTML += '\n';
+  scroll.scrollTop = scroll.scrollHeight;
+}
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey && e.key === 't') { e.preventDefault(); focusWin('terminal'); document.getElementById('terminal-input').focus(); }
+  if (e.ctrlKey && e.key === 'e') { e.preventDefault(); openWin('projects'); }
+});
+
+// ══ CONTACT FORM — AJAX ══
+async function submitContactForm() {
+  const name    = document.getElementById('cf-name').value.trim();
+  const email   = document.getElementById('cf-email').value.trim();
+  const subject = document.getElementById('cf-subject').value.trim();
+  const message = document.getElementById('cf-message').value.trim();
+  const btn     = document.getElementById('cf-submit-btn');
+  const status  = document.getElementById('cf-status');
+  if (!name || !email || !message) {
+    status.style.display='block'; status.style.color='#ff4444'; status.style.borderColor='#ff4444';
+    status.textContent='⚠ ERROR: name, email, and message are required.'; return;
+  }
+  btn.textContent='TRANSMITTING...'; btn.disabled=true; status.style.display='none';
+  try {
+    const res = await fetch('https://formspree.io/f/mkovawbp', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Accept':'application/json'},
+      body:JSON.stringify({name,email,subject,message})
+    });
+    if (res.ok) {
+      status.style.display='block'; status.style.color='var(--green)'; status.style.borderColor='var(--green)';
+      status.textContent='✓ MESSAGE TRANSMITTED. Will respond within 24 hrs.';
+      ['cf-name','cf-email','cf-subject','cf-message'].forEach(id => document.getElementById(id).value='');
+      btn.textContent='TRANSMIT MESSAGE →'; btn.disabled=false;
+    } else {
+      const data = await res.json();
+      throw new Error(data?.errors?.[0]?.message || 'Server error');
+    }
+  } catch(err) {
+    status.style.display='block'; status.style.color='#ff4444'; status.style.borderColor='#ff4444';
+    status.textContent='✗ TRANSMISSION FAILED: ' + err.message;
+    btn.textContent='RETRY →'; btn.disabled=false;
+  }
+}
+
+// ══ RADAR ══
+function drawRadar() {
+  const canvas = document.getElementById('radar-canvas');
+  const ctx = canvas.getContext('2d');
+  const cx=200, cy=190, r=140;
+  const labels = ['Python/AI','Frontend','Backend','DevOps','RAG/LLM','Open Source'];
+  const vals   = [0.90, 0.78, 0.80, 0.75, 0.82, 0.70];
+  const n = labels.length;
+  const toXY = (i, radius) => { const a = (Math.PI*2*i/n)-Math.PI/2; return [cx+radius*Math.cos(a), cy+radius*Math.sin(a)]; };
+  ctx.clearRect(0,0,400,380);
+  for (let ring=1; ring<=4; ring++) {
+    ctx.beginPath();
+    for (let i=0; i<n; i++) { const [x,y]=toXY(i,r*ring/4); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); }
+    ctx.closePath(); ctx.strokeStyle='#2a2d3e'; ctx.lineWidth=1; ctx.stroke();
+  }
+  for (let i=0; i<n; i++) {
+    ctx.beginPath(); ctx.moveTo(cx,cy); const [x,y]=toXY(i,r); ctx.lineTo(x,y);
+    ctx.strokeStyle='#2a2d3e'; ctx.lineWidth=1; ctx.stroke();
+  }
+  ctx.beginPath();
+  vals.forEach((v,i) => { const [x,y]=toXY(i,r*v); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
+  ctx.closePath(); ctx.fillStyle='rgba(0,255,65,0.12)'; ctx.fill();
+  ctx.strokeStyle='#00ff41'; ctx.lineWidth=2; ctx.stroke();
+  vals.forEach((v,i) => { const [x,y]=toXY(i,r*v); ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2); ctx.fillStyle='#00ff41'; ctx.fill(); });
+  ctx.font='13px Share Tech Mono'; ctx.fillStyle='#c8ccd8'; ctx.textAlign='center';
+  labels.forEach((l,i) => { const [x,y]=toXY(i,r+22); ctx.fillText(l,x,y); });
+}
+
+// ══ TETRIS ══
+(function(){
+  const COLS=10,ROWS=18,SZ=20;
+  const COLORS=['#000','#00ff41','#ffb000','#ff4444','#7c9bff','#e8b4ff','#5fd3a0','#ff7c7c'];
+  const PIECES=[[[1,1,1,1]],[[1,1],[1,1]],[[0,1,0],[1,1,1]],[[1,0],[1,0],[1,1]],[[0,1],[0,1],[1,1]],[[1,1,0],[0,1,1]],[[0,1,1],[1,1,0]]];
+  let board,cur,curX,curY,curColor,score=0,level=1,lines=0,running=false;
+  window.startTetris=function(){
+    document.getElementById('tetris-overlay').classList.add('hidden');
+    board=Array(ROWS).fill(null).map(()=>Array(COLS).fill(0));
+    score=0;level=1;lines=0;running=true;updateStats();spawn();loop();
+  };
+  function spawn(){const p=Math.floor(Math.random()*PIECES.length);cur=PIECES[p];curColor=p+1;curX=Math.floor(COLS/2)-Math.floor(cur[0].length/2);curY=0;if(collides()){running=false;showOver();}}
+  function collides(dx=0,dy=0,piece=cur){return piece.some((row,r)=>row.some((v,c)=>{if(!v)return false;const nx=curX+c+dx,ny=curY+r+dy;return nx<0||nx>=COLS||ny>=ROWS||(ny>=0&&board[ny][nx]);}));}
+  function merge(){cur.forEach((row,r)=>row.forEach((v,c)=>{if(v)board[curY+r][curX+c]=curColor;}));}
+  function clearLines(){let cl=0;for(let r=ROWS-1;r>=0;r--){if(board[r].every(v=>v)){board.splice(r,1);board.unshift(Array(COLS).fill(0));cl++;r++;}}if(cl){lines+=cl;score+=[0,40,100,300,1200][cl]*level;level=Math.floor(lines/10)+1;updateStats();}}
+  function updateStats(){document.getElementById('t-score').textContent=score;document.getElementById('t-level').textContent=level;document.getElementById('t-lines').textContent=lines;}
+  function rotate(){const r=cur[0].map((_,i)=>cur.map(row=>row[i]).reverse());if(!collides(0,0,r))cur=r;}
+  function drop(){if(!collides(0,1)){curY++;}else{merge();clearLines();spawn();}}
+  function loop(){if(!running)return;setTimeout(()=>{drop();draw();loop();},Math.max(100,500-(level-1)*40));}
+  function showOver(){const ol=document.getElementById('tetris-overlay');ol.innerHTML=`<div class="tetris-overlay-title">GAME OVER</div><div class="tetris-overlay-sub">SCORE: ${score}</div><button class="play-btn" onclick="startTetris()">RETRY</button>`;ol.classList.remove('hidden');}
+  function draw(){const canvas=document.getElementById('tetris-canvas');const ctx=canvas.getContext('2d');ctx.fillStyle='#0a0c12';ctx.fillRect(0,0,COLS*SZ,ROWS*SZ);board.forEach((row,r)=>row.forEach((v,c)=>{if(v){ctx.fillStyle=COLORS[v];ctx.fillRect(c*SZ+1,r*SZ+1,SZ-2,SZ-2);}}));cur.forEach((row,r)=>row.forEach((v,c)=>{if(v){ctx.fillStyle=COLORS[curColor];ctx.fillRect((curX+c)*SZ+1,(curY+r)*SZ+1,SZ-2,SZ-2);ctx.strokeStyle='rgba(255,255,255,0.3)';ctx.lineWidth=1;ctx.strokeRect((curX+c)*SZ+1,(curY+r)*SZ+1,SZ-2,SZ-2);}}));}
+  document.addEventListener('keydown',e=>{
+    if(!running)return;
+    if(!document.getElementById('win-tetris').classList.contains('focused'))return;
+    if(e.key==='ArrowLeft'&&!collides(-1,0)){curX--;draw();}
+    if(e.key==='ArrowRight'&&!collides(1,0)){curX++;draw();}
+    if(e.key==='ArrowDown'){drop();draw();}
+    if(e.key==='ArrowUp'){rotate();draw();}
+    if(e.key===' '){while(!collides(0,1))curY++;drop();draw();}
+    if(['ArrowLeft','ArrowRight','ArrowDown','ArrowUp',' '].includes(e.key))e.preventDefault();
+  });
+})();
+
+// ══ SNAKE ══
+(function(){
+  const SZ=15,COLS=20,ROWS=20;
+  let snake,dir,food,sScore=0,sBest=0,sRunning=false;
+  window.startSnake=function(){
+    document.getElementById('snake-overlay').style.display='none';
+    snake=[{x:10,y:10},{x:9,y:10},{x:8,y:10}];
+    dir={x:1,y:0};sScore=0;sRunning=true;placeFood();sLoop();
+  };
+  function placeFood(){let ok=false;while(!ok){food={x:Math.floor(Math.random()*COLS),y:Math.floor(Math.random()*ROWS)};ok=!snake.some(s=>s.x===food.x&&s.y===food.y);}}
+  function sLoop(){
+    if(!sRunning)return;
+    const head={x:snake[0].x+dir.x,y:snake[0].y+dir.y};
+    if(head.x<0||head.x>=COLS||head.y<0||head.y>=ROWS||snake.some(s=>s.x===head.x&&s.y===head.y)){
+      sRunning=false;sBest=Math.max(sBest,sScore);document.getElementById('s-best').textContent=sBest;
+      const ol=document.getElementById('snake-overlay');
+      ol.innerHTML=`<div style="font-family:var(--font-vt);font-size:28px;color:var(--green)">GAME OVER</div><div style="font-size:13px;color:var(--text-dim)">Score: ${sScore}</div><button class="play-btn" onclick="startSnake()">RETRY</button>`;
+      ol.style.cssText='position:absolute;inset:0;background:rgba(0,0,0,0.85);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;';return;
+    }
+    snake.unshift(head);
+    if(head.x===food.x&&head.y===food.y){sScore+=10;document.getElementById('s-score').textContent=sScore;placeFood();}else{snake.pop();}
+    drawSnake();setTimeout(sLoop,120);
+  }
+  function drawSnake(){const canvas=document.getElementById('snake-canvas');const ctx=canvas.getContext('2d');ctx.fillStyle='#0a0c12';ctx.fillRect(0,0,COLS*SZ,ROWS*SZ);ctx.fillStyle='#ffb000';ctx.fillRect(food.x*SZ+2,food.y*SZ+2,SZ-4,SZ-4);snake.forEach((s,i)=>{ctx.fillStyle=i===0?'#00ff41':`rgba(0,${Math.max(80,200-i*8)},${Math.max(20,65-i*5)},1)`;ctx.fillRect(s.x*SZ+1,s.y*SZ+1,SZ-2,SZ-2);});}
+  document.addEventListener('keydown',e=>{
+    if(!sRunning||!document.getElementById('win-snake').classList.contains('focused'))return;
+    const map={ArrowUp:{x:0,y:-1},ArrowDown:{x:0,y:1},ArrowLeft:{x:-1,y:0},ArrowRight:{x:1,y:0}};
+    const nd=map[e.key];if(nd&&!(nd.x===-dir.x&&nd.y===-dir.y)){dir=nd;e.preventDefault();}
+  });
+})();
+
+// ══ UTILITY ══
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+
+// ── START ──
+runBoot();
+</script>
+</body>
+</html>
