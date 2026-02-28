@@ -18,3 +18,5 @@ I’m an **Engineering student specializing in Computer Science and Engineering*
 | **Workflow**    | Jira, Trello, n8n |
 
 ---  
+Deployment
+https://mohdfarhan.netlify.app/
